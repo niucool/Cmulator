@@ -10,21 +10,21 @@
 
 | Pascal | C++ | 状态 |
 |---|---|---|---|
-| Cmulator.pas | src/main.cpp | ✅ |
-| Core/globals.pas | src/globals.h | ✅ |
-| Core/struct.pas | src/struct.h | ✅ |
-| Core/emu.pas | src/emu.h + src/emu_init.cpp | ✅ |
-| Core/fnhook.pas | src/fnhook.h | ✅ |
-| Core/utils.pas | src/utils.h / .cpp | ✅ |
-| Core/segments.pas | src/segments.h / .cpp | ✅ |
-| Core/tep_peb.pas | src/tep_peb.h (含 Peb32/Peb64) | ✅ |
-| Core/pe_loader.pas | src/pe_loader.h / .cpp | ✅ |
-| Core/PE/*.pas (30+ 文件) | src/pe_image.h / .cpp (pe-parse 封装) | ✅ |
-| Core/nativehooks.pas | src/nativehooks.h / .cpp | ✅ |
-| Core/memmanager.pas | src/memmanager.h | ✅ |
-| Core/jsplugins_engine.pas | src/js_engine.h / .cpp | ✅ |
-| Core/jsemuobj.pas | src/js_engine.cpp (内联, Emu.* API) | ✅ |
-| **Core/process/ethreads.pas** | **src/ethreads.h / .cpp** | **🆕** |
+| Cmulator.pas | main.cpp | ✅ |
+| Core/globals.pas | Core/globals.h | ✅ |
+| Core/struct.pas | Core/struct.h | ✅ |
+| Core/emu.pas | Core/emu.h + Core/emu_init.cpp | ✅ |
+| Core/fnhook.pas | Core/fnhook.h | ✅ |
+| Core/utils.pas | Core/utils.h / .cpp | ✅ |
+| Core/segments.pas | Core/segments.h / .cpp | ✅ |
+| Core/tep_peb.pas | Core/tep_peb.h (含 Peb32/Peb64) | ✅ |
+| Core/pe_loader.pas | Core/pe_loader.h / .cpp | ✅ |
+| Core/PE/*.pas (30+ 文件) | Core/pe_image.h / .cpp (pe-parse 封装) | ✅ |
+| Core/nativehooks.pas | Core/nativehooks.h / .cpp | ✅ |
+| Core/memmanager.pas | Core/memmanager.h | ✅ |
+| Core/jsplugins_engine.pas | Core/js_engine.h / .cpp | ✅ |
+| Core/jsemuobj.pas | Core/js_engine.cpp (内联, Emu.* API) | ✅ |
+| **Core/process/ethreads.pas** | **Core/ethreads.h / .cpp** | **🆕** |
 | Core/interactive.pas | (stub, TODO) | ⏳ |
 | Core/GUI/gui.pas | (CLI only, 不需要) | ❌ |
 | Core/unicorn/*.pas | <unicorn/unicorn.h> | ✅ |
@@ -113,7 +113,7 @@ Build\cmulator.lib              静态库
 ## 源文件统计 (24 文件)
 
 ```
-src/
+Core/
 ├── types.h          ~85  类型系统
 ├── globals.h        ~80  全局状态
 ├── struct.h        ~250  PE 结构体
@@ -186,5 +186,5 @@ src/
 ## 上次更新
 
 2026-05-14 14:10 — 继续源码移植: main.cpp 接入 TEmu::Start(), PE virtual layout 映射,
-修复 hook/context 传参, port `Core/jsemuobj.pas` 的 Emu JS API 到 `src/js_engine.cpp`,
+修复 hook/context 传参, port `Core/jsemuobj.pas` 的 Emu JS API 到 `Core/js_engine.cpp`,
 补齐 TLS32/TLS64 callback 解析与 `InitTLS()` 回调执行路径。

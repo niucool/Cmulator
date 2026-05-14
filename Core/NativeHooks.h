@@ -1,3 +1,9 @@
+/**
+ * Cmulator - Native API hooks (C++ port of Core/nativehooks.pas)
+ */
+
 #pragma once
 
-void init_NativeHooks();
+#include <unicorn/unicorn.h>
+
+void InstallNativeHooks();

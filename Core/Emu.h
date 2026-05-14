@@ -1,159 +1,81 @@
 #pragma once
-
-#include <cstdint>
+#include "types.h"
+#include "fnhook.h"
+#include "segments.h"
+#include "pe_image.h"
+#include <unicorn/unicorn.h>
 #include <string>
-#include <map>
-#include <vector>
+#include <cstdint>
 #include <stack>
 
-#include "Globals.h"
-#include "Struct.h"
-// #include "Segments.h"
-// #include "Utils.h"
-// #include "PE_Loader.h"
-
-// Forward declaration of dependencies not yet fully defined
-class TPEImage;
-struct uc_engine;
-struct uc_context;
-
-namespace Zydis {
-    class TZydisFormatter;
-}
-
-typedef std::map<std::string, void*> TLibs; // Should map to TNewDll
-typedef std::map<DWORD, void*> TOnExit; // Should map to THookFunction
-
-typedef std::map<uint64_t, void*> THookByName;
-typedef std::map<uint64_t, void*> THookByOrdinal;
-typedef std::map<uint64_t, void*> THookByAddress;
-
 struct THooks {
-    THookByName ByName;
-    THookByOrdinal ByOrdinal;
-    THookByAddress ByAddr;
+    FastHashMap<uint64_t, THookFunction> ByName;
+    FastHashMap<uint64_t, THookFunction> ByOrdinal;
+    FastHashMap<uint64_t, THookFunction> ByAddr;
 };
-
-struct flush_r {
-    uint64_t address;
-    int64_t value;
-    uint32_t size;
-};
-
-struct TApiRed {
-    uint8_t count;
-    std::string first;
-    std::string last;
-    std::string _alias;
-};
-
-typedef std::map<std::string, TApiRed> TApiSetSchema;
-
-struct TApiInfo {
-    bool ISAPI;
-    bool APIHandled;
-    bool CalledFromMainExe;
-};
-
-struct TFlags {
-    uint32_t FLAGS; // eflags
-};
-
-typedef uint32_t uc_mode;
-typedef int uc_err;
-struct PSegmentDescriptor;
-struct uc_x86_mmr;
-class TMemoryStream;
 
 class TEmu {
-private:
-    uc_mode CPU_MODE;
-    std::string FilePath;
-    std::string Shellcode;
-    bool Is_x64;
-    bool IsSC;
-    bool Stop_Emu;
-    uint8_t tmpbool;
-
-    uc_err Ferr;
-
-    PSegmentDescriptor* gdt;
-    uint64_t gdt_address;
-    uint64_t TEB_Address;
-    uint64_t PEB_address;
-    uint64_t fs_address;
-    uint64_t gs_address;
-    // uc_x86_mmr gdtr;
-
-    int64_t SP;
-
-    TMemoryStream* PE;
-    TMemoryStream* SCode;
-    void* MapedPE;
-
-    TLibs FLibs;
-    TOnExit OnExitList;
-
 public:
-    Zydis::TZydisFormatter* Formatter;
+    uc_engine* uc        = nullptr;
+    uc_context* tContext  = nullptr;
+    uc_err     err       = UC_ERR_OK;
 
-    uint64_t Entry;
-    uint64_t LastGoodPC;
-    TFlags Flags;
-    DWORD r_cs, r_ss, r_ds, r_es, r_fs, r_gs;
+    bool    Is_x64  = false;
+    bool&   isx64    = Is_x64;
+    bool    IsSC    = false;
+    bool    Stop_Emu = false;
+    bool&   Stop     = Stop_Emu;
 
-    std::stack<uint64_t> MemFix;
-    std::stack<flush_r> FlushMem;
+    PEImage img;
 
-    bool RunOnDll;
-    bool IsException;
-    int64_t SEH_Handler;
+    uint32_t stack_size  = 0;
+    uint64_t stack_base  = 0;
+    uint64_t stack_limit = 0;
+    uint64_t DLL_BASE_LOAD = 0x70000000;
+    uint64_t DLL_NEXT_LOAD = 0x70000000;
 
-    uint64_t DLL_BASE_LOAD;
-    uint64_t DLL_NEXT_LOAD;
-
-    uint32_t stack_size;
-    uint64_t stack_base;
-    uint64_t stack_limit;
-
-    uint32_t PID;
-
-    TPEImage* Img;
-    uc_engine* uc;
-    uc_context* tContext;
+    FastHashMap<std::string, TNewDll> Libs;
+    FastHashMap<std::string, TApiRed> ApiSetSchema;
     THooks Hooks;
 
-    TApiSetSchema ApiSetSchema;
+    bool    RunOnDll    = false;
+    bool    IsException = false;
+    int64_t SEH_Handler = 0;
+    uint32_t PID        = 0;
 
-    uint64_t getTEB() const { return TEB_Address; }
-    void setTEB(uint64_t val) { TEB_Address = val; }
+    // GDT / segments
+    uint64_t gdt_address = 0;
+    uc_x86_mmr gdtr{};
 
-    uint64_t getPEB() const { return PEB_address; }
-    void setPEB(uint64_t val) { PEB_address = val; }
+    // TEB / PEB addresses
+    uint64_t TEB_Address  = 0;
+    uint64_t PEB_address  = 0;
+    uint64_t fs_address   = 0;
+    uint64_t gs_address   = 0;
 
-    TLibs& getLibs() { return FLibs; }
-    void setLibs(const TLibs& val) { FLibs = val; }
+    // Segment register values
+    uint32_t r_cs = 0, r_ss = 0, r_ds = 0, r_es = 0, r_fs = 0, r_gs = 0;
 
-    bool getIsx64() const { return Is_x64; }
+    // Emulation state
+    uint64_t Entry      = 0;
+    uint64_t LastGoodPC = 0;
+    TFlags   Flags;
 
-    bool getIsShellCode() const { return IsSC; }
-    void setIsShellCode(bool val) { IsSC = val; }
+    // Memory fixup stacks
+    std::stack<uint64_t> MemFix;
+    std::stack<flush_r>  FlushMem;
 
-    bool getStop() const { return Stop_Emu; }
-    void setStop(bool val) { Stop_Emu = val; }
+    // Methods
+    TEmu() = default;
+    virtual ~TEmu() = default;
 
-    uc_err getErr() const { return Ferr; }
-    void setErr(uc_err val) { Ferr = val; }
-
+    bool init_segments();
     void SetHooks();
     bool MapPEtoUC();
     void Start();
+
     bool SaveCPUState();
     bool RestoreCPUState();
     void ResetEFLAGS();
-    bool init_segments();
     void* GetGDT(int index);
-
-    TEmu(const std::string& _FilePath, bool _Shellcode, bool SCx64);
-    virtual ~TEmu();
 };

@@ -1,20 +1,22 @@
+/**
+ * Cmulator - PE Loader (C++ port of Core/pe_loader.pas)
+ */
+
 #pragma once
 
-#include <cstdint>
-#include <string>
-#include <vector>
-#include "Struct.h"
+#include "types.h"
+#include "pe_image.h"
+#include "fnhook.h"
+
 #include <unicorn/unicorn.h>
+#include <string>
 
-// Forward declarations to represent the PE library
-class TPEImage;
-class TMemoryStream;
+class TEmu;
 
-TMemoryStream* MapPE(TPEImage* Img, const std::string& Path);
-void HookImports(uc_engine* uc, TPEImage* Img);
-void HookImports_Pse(uc_engine* uc, TPEImage* Img, const std::string& FilePath);
-bool load_sys_dll(uc_engine* uc, const std::string& Dll);
-TMemoryStream* MapToMemory(TPEImage* PE);
-
-void InitTLS(uc_engine* uc, TPEImage* img);
+bool load_sys_dll(uc_engine* uc, const std::string& dll);
+void HookImports(uc_engine* uc, PEImage& img);
+void InitTLS(uc_engine* uc, PEImage& img);
+void InitDll(uc_engine* uc, TNewDll& lib);
 void Init_dlls();
+MemoryStream MapToMemory(PEImage& pe);
+int GetModulesCount(const FastHashMap<std::string, TNewDll>& libs);

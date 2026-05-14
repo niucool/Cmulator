@@ -1,9 +1,10 @@
+/**
+ * Cmulator - Memory manager stub (C++ port of Core/memmanager.pas)
+ */
+
 #pragma once
 
-// TODO: this class will handle all Memory in the PE .
-// like Alloc new Memory or Free one .. etc .
 class TMemoryManager {
 public:
-    TMemoryManager();
-    ~TMemoryManager();
+    TMemoryManager() = default;
 };

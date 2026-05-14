@@ -1,0 +1,14 @@
+{
+  "name": "cmulator",
+  "version": "0.4.0",
+  "description": "Scriptable x86 RE Sandbox Emulator - C++ port",
+  "dependencies": [
+    "unicorn",
+    "zydis",
+    "quickjs-ng",
+    "xxhash",
+    "pe-parse",
+    "nlohmann-json",
+    "plog"
+  ]
+}

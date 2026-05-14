@@ -91,11 +91,12 @@ set(plog_target plog::plog)
 # ── cmulator library ──
 set(LIB_SRC
     src/segments.cpp src/utils.cpp src/pe_image.cpp
-    src/pe_loader.cpp src/nativehooks.cpp src/js_engine.cpp)
+    src/pe_loader.cpp src/nativehooks.cpp src/js_engine.cpp
+    src/ethreads.cpp src/emu_init.cpp)
 set(LIB_HDR src/types.h src/globals.h src/struct.h src/tep_peb.h
     src/fnhook.h src/segments.h src/emu.h src/utils.h
     src/pe_image.h src/pe_loader.h src/nativehooks.h src/memmanager.h
-    src/js_engine.h)
+    src/js_engine.h src/ethreads.h)
 
 add_library(cmulator STATIC ${LIB_SRC} ${LIB_HDR})
 target_include_directories(cmulator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)

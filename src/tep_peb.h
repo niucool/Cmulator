@@ -287,3 +287,143 @@ struct ImageImportByName {
     WORD Hint = 0;
     char Name[1];  // Variable length
 };
+
+// ── TPEB_32 (PEB for x86) ─────────────────────────────────────────
+// Minimal structure with correct field offsets for initialization.
+// Based on Pascal TPEB_32 (Core/tep_peb.pas) with {$PackRecords C}.
+
+#pragma pack(push, 4)
+struct Peb32 {
+    uint8_t  InheritedAddressSpace;       // 0x00
+    uint8_t  ReadImageFileExecOptions;    // 0x01
+    uint8_t  BeingDebugged;               // 0x02
+    uint8_t  SpareBool;                   // 0x03
+    uint32_t Mutant;                      // 0x04
+    uint32_t ImageBaseAddress;            // 0x08
+    uint32_t Ldr;                         // 0x0C
+    uint32_t ProcessParameters;           // 0x10
+    uint32_t SubSystemData;               // 0x14
+    uint32_t ProcessHeap;                 // 0x18
+    uint32_t FastPebLock;                 // 0x1C
+    uint32_t AtlThunkSListPtr;            // 0x20
+    uint32_t IFEOKey;                     // 0x24
+    uint32_t CrossProcessFlags;           // 0x28
+    uint32_t KernelCallbackTable;         // 0x2C
+    uint32_t SystemReserved;              // 0x30
+    uint32_t AtlThunkSListPtr32;          // 0x34
+    uint32_t ApiSetMap;                   // 0x38
+    uint32_t TlsExpansionCounter;         // 0x3C
+    uint32_t TlsBitmap;                   // 0x40
+    uint32_t TlsBitmapBits[2];            // 0x44
+    uint32_t ReadOnlySharedMemoryBase;    // 0x4C
+    uint32_t HotpatchInformation;         // 0x50
+    uint32_t ReadOnlyStaticServerData;    // 0x54
+    uint32_t AnsiCodePageData;            // 0x58
+    uint32_t OemCodePageData;             // 0x5C
+    uint32_t UnicodeCaseTableData;        // 0x60
+    uint32_t NumberOfProcessors;          // 0x64
+    uint32_t NtGlobalFlag;                // 0x68
+    uint32_t Unknown01;                   // 0x6C
+    int64_t  CriticalSectionTimeout;      // 0x70
+    uint32_t HeapSegmentReserve;          // 0x78
+    uint32_t HeapSegmentCommit;           // 0x7C
+    uint32_t HeapDeCommitTotalFreeThreshold; // 0x80
+    uint32_t HeapDeCommitFreeBlockThreshold; // 0x84
+    uint32_t NumberOfHeaps;               // 0x88
+    uint32_t MaximumNumberOfHeaps;        // 0x8C
+    uint32_t ProcessHeaps;                // 0x90
+    uint32_t GdiSharedHandleTable;        // 0x94
+    uint32_t ProcessStarterHelper;        // 0x98
+    uint32_t GdiDCAttributeList;          // 0x9C
+    uint32_t LoaderLock;                  // 0xA0
+    uint32_t OSMajorVersion;              // 0xA4
+    uint32_t OSMinorVersion;              // 0xA8
+    uint16_t OSBuildNumber;               // 0xAC
+    uint16_t OSCSDVersion;                // 0xAE
+    uint32_t OSPlatformId;                // 0xB0
+    uint32_t ImageSubsystem;              // 0xB4
+    uint32_t ImageSubsystemMajorVersion;  // 0xB8
+    uint32_t ImageSubsystemMinorVersion;  // 0xBC
+    uint32_t ActiveProcessAffinityMask;   // 0xC0
+    uint32_t GdiHandleBuffer[34];         // 0xC4
+    uint32_t PostProcessInitRoutine;      // 0x14C
+    uint32_t TlsExpansionBitmap;          // 0x150
+    uint32_t TlsExpansionBitmapBits[32];  // 0x154
+    uint32_t SessionId;                   // 0x1D4
+    uint8_t  pad_1[0x288];                // remaining TPEB_32 fields → size = 0x45C
+};
+#pragma pack(pop)
+
+static_assert(sizeof(Peb32) == 0x45C, "Peb32 size mismatch (expected 0x45C)");
+
+// ── TPEB_64 (PEB for x64) ─────────────────────────────────────────
+// Minimal structure matching Pascal TPEB_64 field ordering.
+
+#pragma pack(push, 8)
+struct Peb64 {
+    uint8_t  InheritedAddressSpace;       // 0x00
+    uint8_t  ReadImageFileExecOptions;    // 0x01
+    uint8_t  BeingDebugged;               // 0x02
+    uint8_t  SpareBool;                   // 0x03
+    uint32_t Padding0;                    // 0x04
+    uint64_t Mutant;                      // 0x08
+    uint64_t ImageBaseAddress;            // 0x10
+    int64_t  Ldr;                         // 0x18
+    int64_t  ProcessParameters;           // 0x20
+    uint64_t SubSystemData;               // 0x28
+    uint64_t ProcessHeap;                 // 0x30
+    uint64_t FastPebLock;                 // 0x38
+    uint64_t AtlThunkSListPtr;            // 0x40
+    uint64_t IFEOKey;                     // 0x48
+    uint32_t CrossProcessFlags;           // 0x50
+    uint32_t Padding1;                    // 0x54
+    uint64_t KernelCallbackTable;         // 0x58
+    uint32_t SystemReserved;              // 0x60
+    uint32_t AtlThunkSListPtr32;          // 0x64
+    uint64_t ApiSetMap;                   // 0x68
+    uint32_t TlsExpansionCounter;         // 0x70
+    uint32_t Padding2;                    // 0x74
+    uint64_t TlsBitmap;                   // 0x78
+    uint32_t TlsBitmapBits[2];            // 0x80
+    uint64_t ReadOnlySharedMemoryBase;    // 0x88
+    uint64_t HotpatchInformation;         // 0x90
+    uint64_t ReadOnlyStaticServerData;    // 0x98
+    uint64_t AnsiCodePageData;            // 0xA0
+    uint64_t OemCodePageData;             // 0xA8
+    uint64_t UnicodeCaseTableData;        // 0xB0
+    uint32_t NumberOfProcessors;          // 0xB8
+    uint32_t NtGlobalFlag;                // 0xBC
+    int64_t  CriticalSectionTimeout;      // 0xC0
+    uint64_t HeapSegmentReserve;          // 0xC8
+    uint64_t HeapSegmentCommit;           // 0xD0
+    uint64_t HeapDeCommitTotalFreeThreshold; // 0xD8
+    uint64_t HeapDeCommitFreeBlockThreshold; // 0xE0
+    uint32_t NumberOfHeaps;               // 0xE8
+    uint32_t MaximumNumberOfHeaps;        // 0xEC
+    uint64_t ProcessHeaps;                // 0xF0
+    uint64_t GdiSharedHandleTable;        // 0xF8
+    uint64_t ProcessStarterHelper;        // 0x100
+    uint32_t GdiDCAttributeList;          // 0x108
+    uint32_t Padding3;                    // 0x10C
+    uint64_t LoaderLock;                  // 0x110
+    uint32_t OSMajorVersion;              // 0x118
+    uint32_t OSMinorVersion;              // 0x11C
+    uint16_t OSBuildNumber;               // 0x120
+    uint16_t OSCSDVersion;                // 0x122
+    uint32_t OSPlatformId;                // 0x124
+    uint32_t ImageSubsystem;              // 0x128
+    uint32_t ImageSubsystemMajorVersion;  // 0x12C
+    uint32_t ImageSubsystemMinorVersion;  // 0x130
+    uint32_t Padding4;                    // 0x134
+    uint64_t ActiveProcessAffinityMask;   // 0x138
+    uint32_t GdiHandleBuffer[60];         // 0x140
+    uint64_t PostProcessInitRoutine;      // 0x230
+    uint64_t TlsExpansionBitmap;          // 0x238
+    uint32_t TlsExpansionBitmapBits[32];  // 0x240
+    uint32_t SessionId;                   // 0x2C0
+    uint32_t Padding5;                    // 0x2C4
+    uint8_t  pad_1[0x4D4];                // remaining TPEB_64 fields → size = 0x798
+};
+#pragma pack(pop)
+
+static_assert(sizeof(Peb64) == 0x798, "Peb64 size mismatch (expected 0x798)");

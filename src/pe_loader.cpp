@@ -80,30 +80,36 @@ bool load_sys_dll(uc_engine* uc, const std::string& dll) {
     FILE* dllFile = _wfopen(wpath.c_str(), L"rb");
     if (!dllFile) return false;
 
+    std::pair<uc_engine*, uint64_t> sectionCtx{uc, base};
     peparse::IterSec(sysImg._pe, [](void* u, const peparse::VA& se,
-                       const std::string&, const peparse::image_section_header&,
-                       const peparse::bounded_buffer* d) -> int {
+                        const std::string&, const peparse::image_section_header&,
+                        const peparse::bounded_buffer* d) -> int {
         auto* ctx = static_cast<std::pair<uc_engine*,uint64_t>*>(u);
         if (d && d->buf && d->bufLen > 0)
             uc_mem_write(ctx->first, ctx->second + se, d->buf, d->bufLen);
         return 0;
-    }, &std::pair<uc_engine*,uint64_t>(uc, base));
+    }, &sectionCtx);
 
     fclose(dllFile);
 
     // ── Collect exports ─────────────────────────────────────────
     FastHashMap<uint64_t, TLibFunction> byAddr, byOrdinal, byName;
 
+    struct ExportCtx {
+        FastHashMap<uint64_t, TLibFunction>* byAddr;
+        FastHashMap<uint64_t, TLibFunction>* byOrdinal;
+        FastHashMap<uint64_t, TLibFunction>* byName;
+        std::string* libName;
+    } exportCtx{&byAddr, &byOrdinal, &byName, &libName};
+
     peparse::IterExpFull(sysImg._pe, [](void* u, const peparse::VA& addr,
-                          uint16_t ord, const std::string&,
-                          const std::string& fn, const std::string& fwd) -> int {
-        auto* ctx = static_cast<std::tuple<decltype(byAddr)*,
-                           decltype(byOrdinal)*, decltype(byName)*,
-                           std::string*>*>(u);
-        auto& ba = *std::get<0>(*ctx);
-        auto& bo = *std::get<1>(*ctx);
-        auto& bn = *std::get<2>(*ctx);
-        auto& ln = *std::get<3>(*ctx);
+                           uint16_t ord, const std::string&,
+                           const std::string& fn, const std::string& fwd) -> int {
+        auto* ctx = static_cast<ExportCtx*>(u);
+        auto& ba = *ctx->byAddr;
+        auto& bo = *ctx->byOrdinal;
+        auto& bn = *ctx->byName;
+        auto& ln = *ctx->libName;
 
         uint64_t va = static_cast<uint64_t>(addr);
         bool isFwd = !fwd.empty();
@@ -121,7 +127,7 @@ bool load_sys_dll(uc_engine* uc, const std::string& dll) {
             bn[XXH64(n.c_str(), n.size(), 0)] = rec;
         }
         return 0;
-    }, &std::tie(byAddr, byOrdinal, byName, libName));
+    }, &exportCtx);
 
     Emulator->Libs[libName] = TNewDll(base + sysImg.EntryPointRVA,
         libName, base, static_cast<uint32_t>(sysImg.SizeOfImage),
@@ -202,15 +208,34 @@ void Init_dlls() {
 
 void InitTLS(uc_engine* uc, PEImage& img) {
     if (!Emulator || img.TlsCallbacks.empty()) return;
-    for (auto cb : img.TlsCallbacks) {
-        uint64_t rsp = (Emulator->stack_base + Emulator->stack_size) - 0x100;
-        uc_reg_write(uc, UC_X86_REG_ESP, &rsp);
-        push_value(0); push_value(1);
-        push_value(img.ImageBase);
-        push_value(0xDEADC0DEULL);
-    }
-}
 
+    printf("\n[*] Init %zu TLS Callbacks\n", img.TlsCallbacks.size());
+    for (auto cbRva : img.TlsCallbacks) {
+        uint64_t sp = (Emulator->stack_base + Emulator->stack_size) - 0x100;
+        int spReg = Emulator->isx64 ? UC_X86_REG_RSP : UC_X86_REG_ESP;
+        uc_reg_write(uc, spReg, &sp);
+
+        push_value(0);             // lpReserved
+        push_value(1);             // DLL_PROCESS_ATTACH
+        push_value(img.ImageBase); // DllHandle
+        push_value(0xDEADC0DEULL); // synthetic return address
+
+        uint64_t callbackVA = img.ImageBase + cbRva;
+        PLOG_DEBUG << "Call TLS callback: 0x" << std::hex << callbackVA;
+        Emulator->ResetEFLAGS();
+        if (Emulator->SaveCPUState()) {
+            Emulator->err = uc_emu_start(uc, callbackVA, 0, MICROSECONDS * 10, 0);
+            if (!Emulator->RestoreCPUState()) {
+                PLOG_ERROR << "RestoreCPUState failed after TLS callback";
+                return;
+            }
+        } else {
+            PLOG_ERROR << "SaveCPUState failed before TLS callback";
+            return;
+        }
+    }
+    printf("[+] Init TLS Callbacks done\n");
+}
 // ── MapToMemory ──────────────────────────────────────────────────
 
 MemoryStream MapToMemory(PEImage& pe) {

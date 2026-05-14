@@ -5,10 +5,6 @@
 
 #include "globals.h"
 #include "emu.h"
-#include "pe_image.h"
-#include "pe_loader.h"
-#include "segments.h"
-#include "utils.h"
 #include "js_engine.h"
 
 #include <plog/Log.h>
@@ -92,12 +88,23 @@ int main(int argc, char* argv[]) {
     // Load config
     if (!LoadConfig()) return 1;
 
+    if (isShellcode) {
+        PLOG_ERROR << "Shellcode mode is not ported yet";
+        return 1;
+    }
+
+    Steps_limit = stepsLimit;
+    Steps = 0;
+
     // Create emulator
     Emulator = new TEmu();
+    Emulator->IsSC = isShellcode;
 
     // Parse PE
     if (!Emulator->img.LoadFromFile(filePath)) {
         PLOG_ERROR << "Failed to load PE: " << filePath;
+        delete Emulator;
+        Emulator = nullptr;
         return 1;
     }
 
@@ -111,56 +118,23 @@ int main(int argc, char* argv[]) {
     printf("EntryPoint: 0x%llX\n", (unsigned long long)Emulator->img.EntryPointRVA);
     printf("Imports: %zu DLLs\n\n", Emulator->img.Imports.size());
 
-    // Init Unicorn
+    // Init Unicorn; TEmu::Start owns mapping, segments, hooks, DLL init and run.
     uc_err err = uc_open(UC_ARCH_X86,
         Emulator->isx64 ? UC_MODE_64 : UC_MODE_32,
         &Emulator->uc);
     if (err != UC_ERR_OK) {
         PLOG_ERROR << "uc_open failed: " << uc_strerror(err);
+        delete Emulator;
+        Emulator = nullptr;
         return 1;
     }
 
-    // Map PE to Unicorn memory
-    size_t mapSize = Emulator->img.SizeOfImage;
-    err = uc_mem_map(Emulator->uc, Emulator->img.ImageBase, mapSize, UC_PROT_ALL);
-    if (err != UC_ERR_OK) {
-        PLOG_ERROR << "uc_mem_map failed: " << uc_strerror(err);
-        return 1;
-    }
-
-    // Load PE file bytes into Unicorn memory
-    FILE* fp = fopen(filePath.c_str(), "rb");
-    if (fp) {
-        fseek(fp, 0, SEEK_END);
-        long fsize = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-        std::vector<uint8_t> fbuf(fsize);
-        fread(fbuf.data(), 1, fsize, fp);
-        fclose(fp);
-        uc_mem_write(Emulator->uc, Emulator->img.ImageBase, fbuf.data(), fsize);
-    }
-
-    // Fix imports
-    HookImports(Emulator->uc, Emulator->img);
-
-    // Init QuickJS
-    Init_QJS();
-    if (!JSAPI_path.empty()) {
-        LoadScript(JSAPI_path.c_str());
-    }
-    InitJSEmu();
-
-    // Run
-    printf("Starting emulation...\n\n");
-    uint64_t entryVA = Emulator->img.ImageBase + Emulator->img.EntryPointRVA;
-    err = uc_emu_start(Emulator->uc, entryVA, 0, 0, 0);
-    if (err != UC_ERR_OK) {
-        printf("Emulation ended: %s\n", uc_strerror(err));
-    }
+    Emulator->Start();
 
     // Cleanup
     Uninit_JSEngine();
     uc_close(Emulator->uc);
     delete Emulator;
+    Emulator = nullptr;
     return 0;
 }

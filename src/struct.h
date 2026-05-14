@@ -228,6 +228,15 @@ struct ImageTlsDirectory32 {
     DWORD Characteristics       = 0;
 };
 
+struct ImageTlsDirectory64 {
+    uint64_t StartAddressOfRawData = 0;
+    uint64_t EndAddressOfRawData   = 0;
+    uint64_t AddressOfIndex        = 0;
+    uint64_t AddressOfCallBacks    = 0;
+    DWORD    SizeOfZeroFill        = 0;
+    DWORD    Characteristics       = 0;
+};
+
 // ── IMAGE_BASE_RELOCATION ─────────────────────────────────────────
 
 struct ImageBaseRelocation {

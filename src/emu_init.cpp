@@ -11,6 +11,7 @@
 #include <plog/Log.h>
 #include <unicorn/unicorn.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -45,7 +46,7 @@ bool TEmu::RestoreCPUState() {
 void TEmu::SetHooks() {
     uc_hook trace3, trace4, trace5, trace6, trace7;
 
-    err = uc_hook_add(uc, trace3,
+    err = uc_hook_add(uc, &trace3,
         UC_HOOK_MEM_READ_UNMAPPED |
         UC_HOOK_MEM_WRITE_UNMAPPED |
         UC_HOOK_MEM_FETCH_UNMAPPED,
@@ -59,7 +60,7 @@ void TEmu::SetHooks() {
             return e == UC_ERR_OK;
         }, nullptr, 1, 0);
 
-    err = uc_hook_add(uc, trace4, UC_HOOK_CODE,
+    err = uc_hook_add(uc, &trace4, UC_HOOK_CODE,
         [](uc_engine* uc, uint64_t address, uint32_t size, void* user_data) {
             if (!Emulator || Emulator->Stop) { uc_emu_stop(uc); return; }
             if (Steps_limit != 0 && Steps >= Steps_limit) {
@@ -70,7 +71,7 @@ void TEmu::SetHooks() {
             Steps++;
         }, nullptr, 1, 0);
 
-    err = uc_hook_add(uc, trace5, UC_HOOK_INTR,
+    err = uc_hook_add(uc, &trace5, UC_HOOK_INTR,
         [](uc_engine* uc, uint32_t intno, void* user_data) {
             if (Emulator && !Emulator->Stop) {
                 PLOG_WARNING << "Interrupt 0x" << std::hex << intno << " at 0x"
@@ -83,7 +84,7 @@ void TEmu::SetHooks() {
             }
         }, nullptr, 1, 0);
 
-    err = uc_hook_add(uc, trace6, UC_HOOK_INSN,
+    err = uc_hook_add(uc, &trace6, UC_HOOK_INSN,
         [](uc_engine* uc, uint32_t user_data) {
             // Syscall stub
             uint64_t rax = reg_read_x64(uc, UC_X86_REG_EAX);
@@ -91,7 +92,7 @@ void TEmu::SetHooks() {
             reg_write_x64(uc, UC_X86_REG_RAX, 0);
         }, nullptr, 1, 0, UC_X86_INS_SYSCALL);
 
-    err = uc_hook_add(uc, trace7, UC_HOOK_INSN,
+    err = uc_hook_add(uc, &trace7, UC_HOOK_INSN,
         [](uc_engine* uc, uint32_t user_data) {
             // SysEnter stub
             uint64_t eax = reg_read_x64(uc, UC_X86_REG_EAX);
@@ -110,7 +111,7 @@ bool TEmu::MapPEtoUC() {
         return false;
     }
 
-    // Write PE bytes
+    // Write PE headers and section data in virtual image layout.
     FILE* fp = fopen(img.FileName.c_str(), "rb");
     if (!fp) return false;
     fseek(fp, 0, SEEK_END);
@@ -120,9 +121,34 @@ bool TEmu::MapPEtoUC() {
     fread(buf.data(), 1, fsize, fp);
     fclose(fp);
 
-    err = uc_mem_write(uc, img.ImageBase, buf.data(), buf.size());
+    size_t headerSize = std::min<size_t>(buf.size(), img.SizeOfHeaders);
+    if (headerSize == 0) headerSize = std::min<size_t>(buf.size(), UC_PAGE_SIZE);
+
+    err = uc_mem_write(uc, img.ImageBase, buf.data(), headerSize);
     if (err != UC_ERR_OK) {
-        PLOG_ERROR << "uc_mem_write PE failed: " << uc_strerror(err);
+        PLOG_ERROR << "uc_mem_write PE headers failed: " << uc_strerror(err);
+        return false;
+    }
+
+    struct SectionWriteCtx {
+        uc_engine* uc;
+        uint64_t imageBase;
+        uc_err err;
+    } ctx{uc, img.ImageBase, UC_ERR_OK};
+
+    peparse::IterSec(img._pe, [](void* u, const peparse::VA& secBase,
+                       const std::string&, const peparse::image_section_header&,
+                       const peparse::bounded_buffer* data) -> int {
+        auto* ctx = static_cast<SectionWriteCtx*>(u);
+        if (!data || !data->buf || data->bufLen == 0) return 0;
+
+        ctx->err = uc_mem_write(ctx->uc, ctx->imageBase + secBase,
+                                data->buf, data->bufLen);
+        return ctx->err == UC_ERR_OK ? 0 : 1;
+    }, &ctx);
+
+    if (ctx.err != UC_ERR_OK) {
+        PLOG_ERROR << "uc_mem_write PE section failed: " << uc_strerror(ctx.err);
         return false;
     }
 
@@ -295,11 +321,18 @@ void TEmu::Start() {
 
         ResetEFLAGS();
 
+        Entry = img.ImageBase + img.EntryPointRVA;
+
+        // Seed EDX/RDX for samples that enter through a call register pattern.
+        err = uc_reg_write(uc, Is_x64 ? UC_X86_REG_RDX : UC_X86_REG_EDX, &Entry);
+
         // Write return address (RtlExitUserThread)
         uint64_t rtlExit = GetProcAddr(CmuGetModulehandle("ntdll.dll"), "RtlExitUserThread");
         WriteDword(sp, static_cast<uint32_t>(rtlExit));
 
-        Entry = img.ImageBase + img.EntryPointRVA;
+        uint64_t rip = 0;
+        err = uc_reg_read(uc, Is_x64 ? UC_X86_REG_RIP : UC_X86_REG_EIP, &rip);
+        if (rip != 0) Entry = rip;
 
         uint64_t startTime = 0, endTime = 0;
 #ifdef _WIN32

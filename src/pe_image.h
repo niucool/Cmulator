@@ -36,6 +36,7 @@ struct PEImage {
     AnsiString FileName;
     uint64_t   ImageBase     = 0;
     uint64_t   SizeOfImage   = 0;
+    uint32_t   SizeOfHeaders = 0;
     uint32_t   ImageWordSize = 4;    // 4 (x32) or 8 (x64)
     uint64_t   EntryPointRVA = 0;
     uint16_t   Machine       = 0;

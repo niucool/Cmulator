@@ -43,6 +43,52 @@ int importCallback(void* user, const peparse::VA& impAddr,
     return 0;
 }
 
+template<typename T>
+bool readValueAtVA(peparse::parsed_pe* pe, uint64_t va, T& out) {
+    auto* bytes = reinterpret_cast<uint8_t*>(&out);
+    for (size_t i = 0; i < sizeof(T); ++i) {
+        if (!peparse::ReadByteAtVA(pe, va + i, bytes[i])) return false;
+    }
+    return true;
+}
+
+void loadTlsCallbacks(PEImage& img) {
+    if (!img._pe) return;
+
+    const auto& nt = img._pe->peHeader.nt;
+    const auto& dir = img.Is64bit
+        ? nt.OptionalHeader64.DataDirectory[peparse::DIR_TLS]
+        : nt.OptionalHeader.DataDirectory[peparse::DIR_TLS];
+    if (dir.VirtualAddress == 0 || dir.Size == 0) return;
+
+    uint64_t callbacksVA = 0;
+    if (img.Is64bit) {
+        ImageTlsDirectory64 tls{};
+        if (!readValueAtVA(img._pe, img.ImageBase + dir.VirtualAddress, tls)) return;
+        callbacksVA = tls.AddressOfCallBacks;
+    } else {
+        ImageTlsDirectory32 tls{};
+        if (!readValueAtVA(img._pe, img.ImageBase + dir.VirtualAddress, tls)) return;
+        callbacksVA = tls.AddressOfCallBacks;
+    }
+    if (callbacksVA == 0) return;
+
+    constexpr size_t kMaxTlsCallbacks = 1024;
+    for (size_t i = 0; i < kMaxTlsCallbacks; ++i) {
+        uint64_t callbackVA = 0;
+        if (img.Is64bit) {
+            if (!readValueAtVA(img._pe, callbacksVA + i * sizeof(uint64_t), callbackVA)) break;
+        } else {
+            uint32_t callback32 = 0;
+            if (!readValueAtVA(img._pe, callbacksVA + i * sizeof(uint32_t), callback32)) break;
+            callbackVA = callback32;
+        }
+        if (callbackVA == 0) break;
+        if (callbackVA >= img.ImageBase)
+            img.TlsCallbacks.push_back(callbackVA - img.ImageBase);
+    }
+}
+
 int sectionCallback(void* user, const peparse::VA& secBase,
                     const std::string& secName,
                     const peparse::image_section_header& s,
@@ -67,12 +113,14 @@ bool PEImage::LoadFromFile(const std::string& path) {
     if (nt.OptionalMagic == peparse::NT_OPTIONAL_32_MAGIC) {
         ImageBase     = nt.OptionalHeader.ImageBase;
         SizeOfImage   = nt.OptionalHeader.SizeOfImage;
+        SizeOfHeaders = nt.OptionalHeader.SizeOfHeaders;
         EntryPointRVA = nt.OptionalHeader.AddressOfEntryPoint;
         ImageWordSize = 4;
         Is64bit       = false;
     } else {
         ImageBase     = nt.OptionalHeader64.ImageBase;
         SizeOfImage   = nt.OptionalHeader64.SizeOfImage;
+        SizeOfHeaders = nt.OptionalHeader64.SizeOfHeaders;
         EntryPointRVA = nt.OptionalHeader64.AddressOfEntryPoint;
         ImageWordSize = 8;
         Is64bit       = true;
@@ -81,6 +129,7 @@ bool PEImage::LoadFromFile(const std::string& path) {
     ImportCtx impCtx{this};
     peparse::IterImpVAString(_pe, importCallback, &impCtx);
     peparse::IterSec(_pe, sectionCallback, this);
+    loadTlsCallbacks(*this);
 
     return true;
 }
@@ -92,5 +141,6 @@ void PEImage::Close() {
     TlsCallbacks.clear();
     ImageBase     = 0;
     SizeOfImage   = 0;
+    SizeOfHeaders = 0;
     EntryPointRVA = 0;
 }

@@ -50,39 +50,3 @@ TEmu::~TEmu() {
     // Destructor implementation
 }
 
-void TEmu::SetHooks() {
-    // Stub
-}
-
-bool TEmu::MapPEtoUC() {
-    // Stub
-    return false;
-}
-
-void TEmu::Start() {
-    // Stub
-}
-
-bool TEmu::SaveCPUState() {
-    // Stub
-    return false;
-}
-
-bool TEmu::RestoreCPUState() {
-    // Stub
-    return false;
-}
-
-void TEmu::ResetEFLAGS() {
-    // Stub
-}
-
-bool TEmu::init_segments() {
-    // Stub
-    return false;
-}
-
-void* TEmu::GetGDT(int index) {
-    // Stub
-    return nullptr;
-}

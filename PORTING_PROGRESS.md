@@ -10,7 +10,7 @@
 
 | Pascal | C++ | 状态 |
 |---|---|---|---|
-| Cmulator.pas | main.cpp | ✅ |
+| Cmulator.pas | Cmulator.cpp | ✅ |
 | Core/globals.pas | Core/globals.h | ✅ |
 | Core/struct.pas | Core/struct.h | ✅ |
 | Core/emu.pas | Core/emu.h + Core/emu_init.cpp | ✅ |
@@ -106,7 +106,7 @@ Build\cmulator.lib              静态库
 - `Core/jsemuobj.pas` — 已内联移植到 `js_engine.cpp`: `Emu.ReadReg/SetReg`, 字符串读写, 模块加载/查询, 内存读写, 栈操作, Stop/LastError, HexDump/StackDump
 
 ### Phase 6: 主入口 ✅
-- `main.cpp` — CLI 参数解析, config.json 加载, PE→Unicorn 映射, 模拟循环
+- `Cmulator.cpp` — CLI 参数解析, config.json 加载, PE→Unicorn 映射, 模拟循环
 
 ---
 
@@ -136,7 +136,7 @@ Core/
 ├── memmanager.h     ~10  Stub
 ├── js_engine.h       ~6  JS 引擎声明
 ├── js_engine.cpp   ~570  JS 引擎 + Emu JS API 实现
-├── main.cpp        ~180  入口 (config/CLI → TEmu::Start)
+├── Cmulator.cpp        ~180  入口 (config/CLI → TEmu::Start)
 └── test_deps.cpp   ~185  测试
 
 总计: 14 headers + 10 sources ≈ 3200+ lines
@@ -172,19 +172,19 @@ Core/
 - **GIT_SHALLOW**: pe-parse FetchContent 避免 git stash 冲突（仍需后续构建验证）
 - **TEB/PEB 初始化**: `ethreads.h/.cpp` 替代 `Core/process/ethreads.pas`，直接字节偏移写入
 - **Peb32/Peb64**: 最小化结构体 + padding 数组匹配 Pascal 布局
-- **启动路径整合**: `main.cpp` 现在委托 `TEmu::Start()`，避免绕过 segments/TEB/PEB/DLL/TLS 初始化
+- **启动路径整合**: `Cmulator.cpp` 现在委托 `TEmu::Start()`，避免绕过 segments/TEB/PEB/DLL/TLS 初始化
 - **PE 映射**: `MapPEtoUC()` 改为写入 PE headers + section virtual layout，不再把 raw file blob 直接写到 ImageBase
 - **TLS 回调**: `PEImage` 解析 TLS callback table，`InitTLS()` 以 Pascal 相同参数顺序执行回调并恢复 CPU 上下文
 
 ## 当前未验证 / 风险
 
 - 未运行构建或测试（用户要求继续源码移植且不尝试 build）。
-- Shellcode 模式仍未完整移植；`main.cpp` 当前显式拒绝 `-sc`，避免误走 PE 路径。
+- Shellcode 模式仍未完整移植；`Cmulator.cpp` 当前显式拒绝 `-sc`，避免误走 PE 路径。
 - syscall/sysenter、交互式调试、`TMemoryManager` 仍是 stub/minimal 实现。
 - JS API 与 TLS callback 执行已按 Pascal 迁移，但需要后续 QuickJS/Unicorn/编译验证确认函数签名与运行时行为。
 
 ## 上次更新
 
-2026-05-14 14:10 — 继续源码移植: main.cpp 接入 TEmu::Start(), PE virtual layout 映射,
+2026-05-14 14:10 — 继续源码移植: Cmulator.cpp 接入 TEmu::Start(), PE virtual layout 映射,
 修复 hook/context 传参, port `Core/jsemuobj.pas` 的 Emu JS API 到 `Core/js_engine.cpp`,
 补齐 TLS32/TLS64 callback 解析与 `InitTLS()` 回调执行路径。

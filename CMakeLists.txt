@@ -90,13 +90,13 @@ set(plog_target plog::plog)
 
 # ── cmulator library ──
 set(LIB_SRC
-    Core/segments.cpp Core/utils.cpp Core/pe_image.cpp
-    Core/pe_loader.cpp Core/nativehooks.cpp Core/js_engine.cpp
-    Core/ethreads.cpp Core/emu_init.cpp)
-set(LIB_HDR Core/types.h Core/globals.h Core/struct.h Core/tep_peb.h
-    Core/fnhook.h Core/segments.h Core/emu.h Core/utils.h
-    Core/pe_image.h Core/pe_loader.h Core/nativehooks.h Core/memmanager.h
-    Core/js_engine.h Core/ethreads.h)
+    Core/Segments.cpp Core/Utils.cpp Core/Globals.cpp Core/Emu.cpp
+    Core/PE_Loader.cpp Core/NativeHooks.cpp Core/js_engine.cpp
+    Core/process/ethreads.cpp Core/emu_init.cpp Core/PE/pe_image.cpp)
+set(LIB_HDR Core/types.h Core/Globals.h Core/Struct.h Core/TEP_PEB.h
+    Core/FnHook.h Core/Segments.h Core/Emu.h Core/Utils.h
+    Core/PE_Loader.h Core/NativeHooks.h Core/MemManager.h
+    Core/js_engine.h Core/process/ethreads.h Core/PE/pe_image.h)
 
 add_library(cmulator STATIC ${LIB_SRC} ${LIB_HDR})
 target_include_directories(cmulator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -111,7 +111,7 @@ if(WIN32)
 endif()
 
 # ── cmulator executable ──
-add_executable(cmulator_exe main.cpp)
+add_executable(cmulator_exe Cmulator.cpp)
 target_link_libraries(cmulator_exe PRIVATE cmulator qjs-libc)
 set_target_properties(cmulator_exe PROPERTIES OUTPUT_NAME cmulator)
 if(WIN32)

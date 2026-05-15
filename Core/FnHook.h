@@ -22,6 +22,7 @@ struct TLibFunction {
     int32_t  Hits        = 0;     // how many times this API was called
     bool     IsForwarder = false;
     bool     IsOrdinal   = false;
+    bool     IsWapi      = false;   // Windows API (w/a prefix)
     AnsiString LibName;
     AnsiString FuncName;
     AnsiString FWName;            // forwarder name

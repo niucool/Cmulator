@@ -2,7 +2,7 @@
 #include "globals.h"
 #include "segments.h"
 #include "utils.h"
-#include "ethreads.h"
+#include "process/ethreads.h"
 #include "pe_loader.h"
 #include "nativehooks.h"
 #include "js_engine.h"
@@ -50,18 +50,18 @@ void TEmu::SetHooks() {
         UC_HOOK_MEM_READ_UNMAPPED |
         UC_HOOK_MEM_WRITE_UNMAPPED |
         UC_HOOK_MEM_FETCH_UNMAPPED,
-        [](uc_engine* uc, uc_mem_type type, uint64_t address,
-           uint32_t size, int64_t value, void* user_data) -> bool {
+        (void*)(+[](uc_engine* uc, uc_mem_type type, uint64_t address,
+           int size, int64_t value, void* user_data) -> bool {
             // HookMemInvalid: minimal stub
             if (Emulator && Emulator->Stop) return false;
             PLOG_DEBUG << "Memory access error at 0x" << std::hex << address;
             // Map the page on demand
             uc_err e = uc_mem_map(uc, address & ~0xFFFULL, 0x1000, UC_PROT_ALL);
             return e == UC_ERR_OK;
-        }, nullptr, 1, 0);
+        }), nullptr, 1, 0);
 
     err = uc_hook_add(uc, &trace4, UC_HOOK_CODE,
-        [](uc_engine* uc, uint64_t address, uint32_t size, void* user_data) {
+        (void*)(+[](uc_engine* uc, uint64_t address, uint32_t size, void* user_data) {
             if (!Emulator || Emulator->Stop) { uc_emu_stop(uc); return; }
             if (Steps_limit != 0 && Steps >= Steps_limit) {
                 Emulator->Stop = true;
@@ -69,10 +69,10 @@ void TEmu::SetHooks() {
                 return;
             }
             Steps++;
-        }, nullptr, 1, 0);
+        }), nullptr, 1, 0);
 
     err = uc_hook_add(uc, &trace5, UC_HOOK_INTR,
-        [](uc_engine* uc, uint32_t intno, void* user_data) {
+        (void*)(+[](uc_engine* uc, uint32_t intno, void* user_data) {
             if (Emulator && !Emulator->Stop) {
                 PLOG_WARNING << "Interrupt 0x" << std::hex << intno << " at 0x"
                              << reg_read_x64(uc, UC_X86_REG_RIP);
@@ -82,23 +82,23 @@ void TEmu::SetHooks() {
                     uc_reg_write(uc, UC_X86_REG_EIP, &pc);
                 }
             }
-        }, nullptr, 1, 0);
+        }), nullptr, 1, 0);
 
     err = uc_hook_add(uc, &trace6, UC_HOOK_INSN,
-        [](uc_engine* uc, uint32_t user_data) {
+        (void*)(+[](uc_engine* uc, uint32_t user_data) {
             // Syscall stub
             uint64_t rax = reg_read_x64(uc, UC_X86_REG_EAX);
             PLOG_DEBUG << "Syscall EAX=0x" << std::hex << rax;
             reg_write_x64(uc, UC_X86_REG_RAX, 0);
-        }, nullptr, 1, 0, UC_X86_INS_SYSCALL);
+        }), nullptr, 1, 0, UC_X86_INS_SYSCALL);
 
     err = uc_hook_add(uc, &trace7, UC_HOOK_INSN,
-        [](uc_engine* uc, uint32_t user_data) {
+        (void*)(+[](uc_engine* uc, uint32_t user_data) {
             // SysEnter stub
             uint64_t eax = reg_read_x64(uc, UC_X86_REG_EAX);
             PLOG_DEBUG << "SysEnter EAX=0x" << std::hex << eax;
             reg_write_x64(uc, UC_X86_REG_EAX, 0);
-        }, nullptr, 1, 0, UC_X86_INS_SYSENTER);
+        }), nullptr, 1, 0, UC_X86_INS_SYSENTER);
 }
 
 // ── MapPEtoUC ──────────────────────────────────────────────────
@@ -304,8 +304,8 @@ void TEmu::Start() {
 
         // Init JS
         Init_QJS();
-        if (!JSAPI_path.empty())
-            LoadScript(JSAPI_path.c_str());
+        if (!JSAPI.empty())
+            LoadScript(JSAPI.c_str());
         InitJSEmu();
 
         // Init DLLs and TLS

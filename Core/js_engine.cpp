@@ -231,16 +231,16 @@ static JSModuleDef* js_module_loader(JSContext* ctx,
 // Init_QJS
 
 void Init_QJS() {
-    js_runtime = JS_NewRuntime();
-    if (!js_runtime) { PLOG_FATAL << "JS_NewRuntime failed"; return; }
+    rt = JS_NewRuntime();
+    if (!rt) { PLOG_FATAL << "JS_NewRuntime failed"; return; }
 
-    js_context = JS_NewContext(js_runtime);
-    if (!js_context) { PLOG_FATAL << "JS_NewContext failed"; return; }
+    ctx = JS_NewContext(rt);
+    if (!ctx) { PLOG_FATAL << "JS_NewContext failed"; return; }
 
-    JS_SetModuleLoaderFunc(js_runtime, nullptr, js_module_loader, nullptr);
+    JS_SetModuleLoaderFunc(rt, nullptr, js_module_loader, nullptr);
 
     // Register ApiHook class
-    RegisterNativeClass(js_context);
+    RegisterNativeClass(ctx);
 
     PLOG_INFO << "QuickJS initialized";
 }
@@ -248,15 +248,15 @@ void Init_QJS() {
 // Uninit_JSEngine
 
 void Uninit_JSEngine() {
-    if (js_context) { JS_FreeContext(js_context); js_context = nullptr; }
-    if (js_runtime) { JS_FreeRuntime(js_runtime); js_runtime = nullptr; }
+    if (ctx) { JS_FreeContext(ctx); ctx = nullptr; }
+    if (rt) { JS_FreeRuntime(rt); rt = nullptr; }
 }
 
 // LoadScript
 
 void LoadScript(const char* filename) {
-    if (!js_context) return;
-    if (eval_file(js_context, filename, JS_EVAL_TYPE_GLOBAL) < 0) {
+    if (!ctx) return;
+    if (eval_file(ctx, filename, JS_EVAL_TYPE_GLOBAL) < 0) {
         PLOG_ERROR << "Failed to load script: " << filename;
     }
 }
@@ -402,7 +402,7 @@ static JSValue emu_WriteMem(JSContext* ctx, JSValueConst, int argc, JSValueConst
     if (argc != 2) return JS_ThrowTypeError(ctx, "WriteMem(addr, array) expects two arguments");
     uint64_t addr = 0;
     if (!js_to_u64(ctx, argv[0], addr, "WriteMem addr must be a number")) return JS_EXCEPTION;
-    if (!JS_IsArray(ctx, argv[1])) return JS_ThrowTypeError(ctx, "WriteMem data must be an array");
+    if (!JS_IsArray(argv[1])) return JS_ThrowTypeError(ctx, "WriteMem data must be an array");
     JSValue lengthValue = JS_GetPropertyStr(ctx, argv[1], "length");
     uint32_t len = 0;
     bool ok = js_to_u32(ctx, lengthValue, len, "WriteMem array length must be numeric");
@@ -510,14 +510,14 @@ static void register_emu_method(JSContext* ctx, JSValue obj, const char* name,
 // InitJSEmu: Register Emu object with all functions.
 
 void InitJSEmu() {
-    if (!js_context || !Emulator) return;
+    if (!ctx || !Emulator) return;
 
-    JSContext* ctx = js_context;
-    JSValue global = JS_GetGlobalObject(ctx);
-    JSValue emuObj = JS_NewObject(ctx);
+    JSContext* c = ctx;
+    JSValue global = JS_GetGlobalObject(c);
+    JSValue emuObj = JS_NewObject(c);
 
     // Properties
-    JS_SetPropertyStr(ctx, emuObj, "TEB", JS_NewInt64(ctx,
+    JS_SetPropertyStr(c, emuObj, "TEB", JS_NewInt64(c,
                        static_cast<int64_t>(Emulator->TEB_Address)));
     JS_SetPropertyStr(ctx, emuObj, "PEB", JS_NewInt64(ctx,
                        static_cast<int64_t>(Emulator->PEB_address)));
@@ -527,45 +527,45 @@ void InitJSEmu() {
     JS_SetPropertyStr(ctx, emuObj, "Filename", JS_NewString(ctx,
                        Emulator->img.FileName.c_str()));
 
-    register_emu_method(ctx, emuObj, "ReadReg", emu_ReadReg, 1);
-    register_emu_method(ctx, emuObj, "SetReg", emu_SetReg, 2);
-    register_emu_method(ctx, emuObj, "ReadStringA", emu_ReadStringA, 2);
-    register_emu_method(ctx, emuObj, "ReadStringW", emu_ReadStringW, 2);
-    register_emu_method(ctx, emuObj, "WriteStringA", emu_WriteStringA, 2);
-    register_emu_method(ctx, emuObj, "WriteStringW", emu_WriteStringW, 2);
-    register_emu_method(ctx, emuObj, "LoadLibrary", emu_LoadLibrary, 1);
-    register_emu_method(ctx, emuObj, "GetModuleName", emu_GetModuleName, 1);
-    register_emu_method(ctx, emuObj, "GetModuleHandle", emu_GetModuleHandle, 1);
-    register_emu_method(ctx, emuObj, "GetProcAddress", emu_GetProcAddress, 2);
-    register_emu_method(ctx, emuObj, "GetProcAddr", emu_GetProcAddress, 2);
-    register_emu_method(ctx, emuObj, "WriteByte", emu_WriteByte, 2);
-    register_emu_method(ctx, emuObj, "WriteWord", emu_WriteWord, 2);
-    register_emu_method(ctx, emuObj, "WriteDword", emu_WriteDword, 2);
-    register_emu_method(ctx, emuObj, "WriteQword", emu_WriteQword, 2);
-    register_emu_method(ctx, emuObj, "WriteMem", emu_WriteMem, 2);
-    register_emu_method(ctx, emuObj, "ReadByte", emu_ReadByte, 1);
-    register_emu_method(ctx, emuObj, "ReadWord", emu_ReadWord, 1);
-    register_emu_method(ctx, emuObj, "ReadDword", emu_ReadDword, 1);
-    register_emu_method(ctx, emuObj, "ReadQword", emu_ReadQword, 1);
-    register_emu_method(ctx, emuObj, "ReadMem", emu_ReadMem, 2);
-    register_emu_method(ctx, emuObj, "push", emu_push, 1);
-    register_emu_method(ctx, emuObj, "pop", emu_pop, 0);
-    register_emu_method(ctx, emuObj, "Stop", emu_Stop, 0);
-    register_emu_method(ctx, emuObj, "LastError", emu_LastError, 0);
-    register_emu_method(ctx, emuObj, "HexDump", emu_HexDump, 3);
-    register_emu_method(ctx, emuObj, "StackDump", emu_StackDump, 2);
+    register_emu_method(c, emuObj, "ReadReg", emu_ReadReg, 1);
+    register_emu_method(c, emuObj, "SetReg", emu_SetReg, 2);
+    register_emu_method(c, emuObj, "ReadStringA", emu_ReadStringA, 2);
+    register_emu_method(c, emuObj, "ReadStringW", emu_ReadStringW, 2);
+    register_emu_method(c, emuObj, "WriteStringA", emu_WriteStringA, 2);
+    register_emu_method(c, emuObj, "WriteStringW", emu_WriteStringW, 2);
+    register_emu_method(c, emuObj, "LoadLibrary", emu_LoadLibrary, 1);
+    register_emu_method(c, emuObj, "GetModuleName", emu_GetModuleName, 1);
+    register_emu_method(c, emuObj, "GetModuleHandle", emu_GetModuleHandle, 1);
+    register_emu_method(c, emuObj, "GetProcAddress", emu_GetProcAddress, 2);
+    register_emu_method(c, emuObj, "GetProcAddr", emu_GetProcAddress, 2);
+    register_emu_method(c, emuObj, "WriteByte", emu_WriteByte, 2);
+    register_emu_method(c, emuObj, "WriteWord", emu_WriteWord, 2);
+    register_emu_method(c, emuObj, "WriteDword", emu_WriteDword, 2);
+    register_emu_method(c, emuObj, "WriteQword", emu_WriteQword, 2);
+    register_emu_method(c, emuObj, "WriteMem", emu_WriteMem, 2);
+    register_emu_method(c, emuObj, "ReadByte", emu_ReadByte, 1);
+    register_emu_method(c, emuObj, "ReadWord", emu_ReadWord, 1);
+    register_emu_method(c, emuObj, "ReadDword", emu_ReadDword, 1);
+    register_emu_method(c, emuObj, "ReadQword", emu_ReadQword, 1);
+    register_emu_method(c, emuObj, "ReadMem", emu_ReadMem, 2);
+    register_emu_method(c, emuObj, "push", emu_push, 1);
+    register_emu_method(c, emuObj, "pop", emu_pop, 0);
+    register_emu_method(c, emuObj, "Stop", emu_Stop, 0);
+    register_emu_method(c, emuObj, "LastError", emu_LastError, 0);
+    register_emu_method(c, emuObj, "HexDump", emu_HexDump, 3);
+    register_emu_method(c, emuObj, "StackDump", emu_StackDump, 2);
 
-    JS_SetPropertyStr(ctx, global, "Emu", emuObj);
+    JS_SetPropertyStr(c, global, "Emu", emuObj);
     // console.log override
-    JSValue console = JS_NewObject(ctx);
-    JS_SetPropertyStr(ctx, console, "log",
-        JS_NewCFunctionMagic(ctx, logme, "log", 1, JS_CFUNC_generic_magic, 1));
-    JS_SetPropertyStr(ctx, global, "console", console);
+    JSValue console = JS_NewObject(c);
+    JS_SetPropertyStr(c, console, "log",
+        JS_NewCFunctionMagic(c, logme, "log", 1, JS_CFUNC_generic_magic, 1));
+    JS_SetPropertyStr(c, global, "console", console);
 
-    JS_SetPropertyStr(ctx, global, "print",
-        JS_NewCFunctionMagic(ctx, logme, "print", 1, JS_CFUNC_generic_magic, 0));
-    JS_SetPropertyStr(ctx, global, "importScripts",
-        JS_NewCFunction(ctx, NativeImportScripts, "importScripts", 1));
+    JS_SetPropertyStr(c, global, "print",
+        JS_NewCFunctionMagic(c, logme, "print", 1, JS_CFUNC_generic_magic, 0));
+    JS_SetPropertyStr(c, global, "importScripts",
+        JS_NewCFunction(c, NativeImportScripts, "importScripts", 1));
 
-    JS_FreeValue(ctx, global);
+    JS_FreeValue(c, global);
 }

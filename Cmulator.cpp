@@ -29,9 +29,9 @@ static bool LoadConfig() {
 
     json cfg = json::parse(f);
 
-    win32_path = cfg["system"]["win32"].get<std::wstring>();
-    win64_path = cfg["system"]["win64"].get<std::wstring>();
-    JSAPI_path  = cfg["JS"]["main"].get<std::string>();
+    win32_dir = cfg["system"]["win32"].get<std::wstring>();
+    win64_dir = cfg["system"]["win64"].get<std::wstring>();
+    JSAPI  = cfg["JS"]["main"].get<std::string>();
     ApiSetSchemaPath = cfg["system"]["Apiset"].get<std::wstring>();
 
     // TODO: validate file/dir existence

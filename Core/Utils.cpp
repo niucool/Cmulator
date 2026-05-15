@@ -399,7 +399,7 @@ UnicodeString GetFullPath(const std::string& name) {
     std::string lower = name;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
-    UnicodeString base = Emulator->isx64 ? win64_path : win32_path;
+    UnicodeString base = Emulator->isx64 ? win64_dir : win32_dir;
 
     // Ensure trailing separator
     if (!base.empty() && base.back() != L'\\') base += L'\\';

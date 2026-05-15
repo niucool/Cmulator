@@ -2,7 +2,7 @@
 #include "types.h"
 #include "fnhook.h"
 #include "segments.h"
-#include "pe_image.h"
+#include "PE/pe_image.h"
 #include <unicorn/unicorn.h>
 #include <string>
 #include <cstdint>

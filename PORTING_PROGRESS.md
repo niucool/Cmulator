@@ -2,8 +2,7 @@
 
 > 从 Pascal (Free Pascal / Delphi) 移植到 C++17
 > 最后源码移植更新: 2026-05-14 14:10
-> 构建状态: 未重新构建（按要求继续源码移植，不运行 build）
-
+> 构建状态: 编译成功 (2026-05-14)
 ---
 
 ## 架构映射
@@ -19,12 +18,12 @@
 | Core/segments.pas | Core/segments.h / .cpp | ✅ |
 | Core/tep_peb.pas | Core/tep_peb.h (含 Peb32/Peb64) | ✅ |
 | Core/pe_loader.pas | Core/pe_loader.h / .cpp | ✅ |
-| Core/PE/*.pas (30+ 文件) | Core/pe_image.h / .cpp (pe-parse 封装) | ✅ |
+| Core/PE/*.pas (30+ 文件) | Core/PE/pe_image.h / .cpp (pe-parse 封装) | ✅ |
 | Core/nativehooks.pas | Core/nativehooks.h / .cpp | ✅ |
 | Core/memmanager.pas | Core/memmanager.h | ✅ |
 | Core/jsplugins_engine.pas | Core/js_engine.h / .cpp | ✅ |
 | Core/jsemuobj.pas | Core/js_engine.cpp (内联, Emu.* API) | ✅ |
-| **Core/process/ethreads.pas** | **Core/ethreads.h / .cpp** | **🆕** |
+| **Core/process/ethreads.pas** | **Core/process/ethreads.h / .cpp** | **🆕** |
 | Core/interactive.pas | (stub, TODO) | ⏳ |
 | Core/GUI/gui.pas | (CLI only, 不需要) | ❌ |
 | Core/unicorn/*.pas | <unicorn/unicorn.h> | ✅ |

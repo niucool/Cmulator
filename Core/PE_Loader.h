@@ -5,7 +5,7 @@
 #pragma once
 
 #include "types.h"
-#include "pe_image.h"
+#include "PE/pe_image.h"
 #include "fnhook.h"
 
 #include <unicorn/unicorn.h>

@@ -350,7 +350,7 @@ struct Peb32 {
     uint32_t TlsExpansionBitmap;          // 0x150
     uint32_t TlsExpansionBitmapBits[32];  // 0x154
     uint32_t SessionId;                   // 0x1D4
-    uint8_t  pad_1[0x288];                // remaining TPEB_32 fields → size = 0x45C
+    uint8_t  pad_1[0x284];                // remaining TPEB_32 fields → size = 0x45C
 };
 #pragma pack(pop)
 
@@ -422,7 +422,7 @@ struct Peb64 {
     uint32_t TlsExpansionBitmapBits[32];  // 0x240
     uint32_t SessionId;                   // 0x2C0
     uint32_t Padding5;                    // 0x2C4
-    uint8_t  pad_1[0x4D4];                // remaining TPEB_64 fields → size = 0x798
+    uint8_t  pad_1[0x4D0];                // remaining TPEB_64 fields → size = 0x798
 };
 #pragma pack(pop)
 

@@ -2,17 +2,12 @@
 
 #include <cstdint>
 #include <string>
+#include "types.h"
+#include <quickjs.h>
 
 // Forward declarations
 class TEmu;
 
-// QuickJS Forward declarations (these would ideally come from quickjs.h)
-struct JSRuntime;
-struct JSContext;
-// JSValue is typically a struct or a uint64_t, defining it as uint64_t as a placeholder
-typedef uint64_t JSValue;
-
-extern const char* CM_VERSION;
 extern uint64_t microseconds;
 
 extern bool VerboseExcp;
@@ -33,9 +28,9 @@ extern JSContext* ctx;
 extern JSValue JSEmu;
 
 // Pascal's UnicodeString maps roughly to std::u16string or std::wstring
-extern std::u16string win32_dir; // 'win32' is a macro on windows, renamed to win32_dir
-extern std::u16string win64_dir; // 'win64' renamed to win64_dir
+extern UnicodeString win32_dir; // 'win32' is a macro on windows, renamed to win32_dir
+extern UnicodeString win64_dir; // 'win64' renamed to win64_dir
 
 // Pascal's AnsiString maps to std::string
 extern std::string JSAPI;
-extern std::u16string ApiSetSchemaPath;
+extern UnicodeString ApiSetSchemaPath;

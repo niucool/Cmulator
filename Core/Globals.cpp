@@ -1,6 +1,5 @@
 #include "Globals.h"
 
-const char* CM_VERSION = "v0.3.0";
 uint64_t microseconds = 1000000;
 
 bool VerboseExcp = false;
@@ -18,10 +17,10 @@ TEmu* Emulator = nullptr;
 
 JSRuntime* rt = nullptr;
 JSContext* ctx = nullptr;
-JSValue JSEmu = 0;
+JSValue JSEmu = JS_UNDEFINED;
 
-std::u16string win32_dir = u"";
-std::u16string win64_dir = u"";
+UnicodeString win32_dir = L"";
+UnicodeString win64_dir = L"";
 
 std::string JSAPI = "";
-std::u16string ApiSetSchemaPath = u"";
+UnicodeString ApiSetSchemaPath = L"";

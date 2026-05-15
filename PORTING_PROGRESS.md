@@ -175,15 +175,36 @@ Core/
 - **PE 映射**: `MapPEtoUC()` 改为写入 PE headers + section virtual layout，不再把 raw file blob 直接写到 ImageBase
 - **TLS 回调**: `PEImage` 解析 TLS callback table，`InitTLS()` 以 Pascal 相同参数顺序执行回调并恢复 CPU 上下文
 
+## 尚未完全移植的核心功能 (TODO)
+
+经过 Pascal 与 C++ 源码的比对，以下核心逻辑目前在 C++ 版本中仍然是 Stub 或完全缺失：
+
+1. **Unicorn 指令执行回调 (`HookCode`) 逻辑缺失**
+   * C++ 的 `trace4` (UC_HOOK_CODE) 目前只做了非常基础的步数统计。
+   * **缺失 API Hook 分发**: Pascal 版本的 `CheckHook`, `CallJS`, `CheckAddrHooks`, `CheckOnExitCallBack` 均未移植。这意味着 JS 脚本中的 API Hook 当前在 C++ 中**无法被触发拦截**。
+   * **缺失 Zydis 反汇编输出**: Pascal 版中处理 `-asm` 参数并在控制台着色打印指令的逻辑未移植。
+   * **缺失指令级 Bypass**: 例如对 `rdtsc`, `cpuid` 返回虚假数据，以及对 Shellcode 的 `xor [reg]` 进行快速步进的逻辑。
+
+2. **SEH 结构化异常处理 (`Handle_SEH`) 缺失**
+   * C++ 版本的 `HookMemInvalid` (对应未映射内存访问) 目前只做了一个极其简单的按需内存映射 (`uc_mem_map`)。
+   * Pascal 版本遇到访问违规时，会在模拟器栈上构建完整的 `EXCEPTION_RECORD_32` 和 `CONTEXT_32` 结构，并跳转到 `ZwContinue` / SEH Handler。这一重要的反调试/壳处理机制在 C++ 中尚未实现。
+
+3. **内存读写监控 (`HookMemX86`) 缺失**
+   * C++ 尚未注册内存读写 `UC_MEM_READ`/`UC_MEM_WRITE` 的 Hook。
+   * 缺少 Unicorn 内存状态同步的 Workaround (`FlushMemMapping`)。
+
+4. **Shellcode 加载模式**
+   * 目前 `Cmulator.cpp` 在入口处显式拒绝了 `-sc` 参数，Shellcode 特有的内存分配与入口跳转逻辑未包含在 `TEmu::Start()` 中。
+
+5. **存根模块 (Stubs)**
+   * `syscall`/`sysenter` 处理代码只是打印日志。
+   * `Core/interactive.pas` (交互调试模式) 和 `Core/memmanager.pas` 仅为占位符。
+
 ## 当前未验证 / 风险
 
-- 未运行构建或测试（用户要求继续源码移植且不尝试 build）。
-- Shellcode 模式仍未完整移植；`Cmulator.cpp` 当前显式拒绝 `-sc`，避免误走 PE 路径。
-- syscall/sysenter、交互式调试、`TMemoryManager` 仍是 stub/minimal 实现。
-- JS API 与 TLS callback 执行已按 Pascal 迁移，但需要后续 QuickJS/Unicorn/编译验证确认函数签名与运行时行为。
+- JS API 与 TLS callback 执行已按 Pascal 迁移，但需要后续补齐 `HookCode` 后才能进行完整的运行时行为验证。
+- C++ 编译器和操作系统的差异（比如 MSVC / Windows API 调用约定）可能在补齐 Hook 引擎后引发崩溃，需使用真实样本测试。
 
 ## 上次更新
 
-2026-05-14 14:10 — 继续源码移植: Cmulator.cpp 接入 TEmu::Start(), PE virtual layout 映射,
-修复 hook/context 传参, port `Core/jsemuobj.pas` 的 Emu JS API 到 `Core/js_engine.cpp`,
-补齐 TLS32/TLS64 callback 解析与 `InitTLS()` 回调执行路径。
+2026-05-14 20:00 — 完成构建系统与头文件修复，解决 JS 参数、Padding 大小及 C++ Lambda 等编译报错，**成功编译并生成 `cmulator.exe`**。比对发现指令级 Hook 引擎、SEH 模拟及 Zydis 汇编打印等运行时功能尚未移植。

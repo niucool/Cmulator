@@ -44,32 +44,21 @@ bool TEmu::RestoreCPUState() {
 // ── SetHooks ───────────────────────────────────────────────────
 
 void TEmu::SetHooks() {
-    uc_hook trace3, trace4, trace5, trace6, trace7;
+    uc_hook trace3, trace4, trace5, trace6, trace7, traceMemX86;
 
     err = uc_hook_add(uc, &trace3,
         UC_HOOK_MEM_READ_UNMAPPED |
         UC_HOOK_MEM_WRITE_UNMAPPED |
         UC_HOOK_MEM_FETCH_UNMAPPED,
-        (void*)(+[](uc_engine* uc, uc_mem_type type, uint64_t address,
-           int size, int64_t value, void* user_data) -> bool {
-            // HookMemInvalid: minimal stub
-            if (Emulator && Emulator->Stop) return false;
-            PLOG_DEBUG << "Memory access error at 0x" << std::hex << address;
-            // Map the page on demand
-            uc_err e = uc_mem_map(uc, address & ~0xFFFULL, 0x1000, UC_PROT_ALL);
-            return e == UC_ERR_OK;
-        }), nullptr, 1, 0);
+        (void*)TEmu::HookMemInvalid, nullptr, 1, 0);
+
+    err = uc_hook_add(uc, &traceMemX86,
+        UC_HOOK_MEM_READ |
+        UC_HOOK_MEM_WRITE,
+        (void*)TEmu::HookMemX86, nullptr, 1, 0);
 
     err = uc_hook_add(uc, &trace4, UC_HOOK_CODE,
-        (void*)(+[](uc_engine* uc, uint64_t address, uint32_t size, void* user_data) {
-            if (!Emulator || Emulator->Stop) { uc_emu_stop(uc); return; }
-            if (Steps_limit != 0 && Steps >= Steps_limit) {
-                Emulator->Stop = true;
-                uc_emu_stop(uc);
-                return;
-            }
-            Steps++;
-        }), nullptr, 1, 0);
+        (void*)TEmu::HookCode, nullptr, 1, 0);
 
     err = uc_hook_add(uc, &trace5, UC_HOOK_INTR,
         (void*)(+[](uc_engine* uc, uint32_t intno, void* user_data) {
@@ -273,6 +262,8 @@ bool TEmu::init_segments() {
 // ── Start ──────────────────────────────────────────────────────
 
 void TEmu::Start() {
+    ZydisFormatterInit(&Formatter, ZYDIS_FORMATTER_STYLE_INTEL);
+
     // Allocate context
     uc_context_alloc(uc, &tContext);
     if (!tContext) {

@@ -89,10 +89,9 @@ endif()
 set(plog_target plog::plog)
 
 # ── cmulator library ──
-set(LIB_SRC
-    Core/Segments.cpp Core/Utils.cpp Core/Globals.cpp
-    Core/PE_Loader.cpp Core/NativeHooks.cpp Core/js_engine.cpp
-    Core/process/ethreads.cpp Core/emu_init.cpp Core/PE/pe_image.cpp)
+set(LIB_SRC Core/Globals.cpp Core/segments.cpp Core/Utils.cpp
+    Core/PE_Loader.cpp Core/emu_init.cpp Core/emu_hooks.cpp Core/NativeHooks.cpp 
+    Core/js_engine.cpp Core/process/ethreads.cpp Core/PE/pe_image.cpp)
 set(LIB_HDR Core/types.h Core/Globals.h Core/Struct.h Core/TEP_PEB.h
     Core/FnHook.h Core/Segments.h Core/Emu.h Core/Utils.h
     Core/PE_Loader.h Core/NativeHooks.h Core/MemManager.h

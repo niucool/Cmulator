@@ -14,6 +14,8 @@ struct THooks {
     FastHashMap<uint64_t, THookFunction> ByAddr;
 };
 
+#include <Zydis/Zydis.h>
+
 class TEmu {
 public:
     uc_engine* uc        = nullptr;
@@ -34,14 +36,18 @@ public:
     uint64_t DLL_BASE_LOAD = 0x70000000;
     uint64_t DLL_NEXT_LOAD = 0x70000000;
 
+    ZydisFormatter Formatter;
+
     FastHashMap<std::string, TNewDll> Libs;
     FastHashMap<std::string, TApiRed> ApiSetSchema;
     THooks Hooks;
+    FastHashMap<uint64_t, THookFunction> OnExitList;
 
     bool    RunOnDll    = false;
     bool    IsException = false;
     int64_t SEH_Handler = 0;
     uint32_t PID        = 0;
+    uint8_t  tmpbool    = 0;
 
     // GDT / segments
     uint64_t gdt_address = 0;
@@ -78,4 +84,16 @@ public:
     bool RestoreCPUState();
     void ResetEFLAGS();
     void* GetGDT(int index);
+
+    // Callbacks & Helpers
+    static bool Handle_SEH(uc_engine* uc, uint32_t ExceptionCode);
+    static bool HookMemInvalid(uc_engine* uc, uc_mem_type type, uint64_t address, int size, int64_t value, void* user_data);
+    static void HookMemX86(uc_engine* uc, uc_mem_type type, uint64_t address, int size, int64_t value, void* user_data);
+    static void HookCode(uc_engine* uc, uint64_t address, uint32_t size, void* user_data);
+    
+    static void FlushMemMapping(uc_engine* uc);
+    static bool CallJS(TLibFunction& API, THookFunction& Hook, uint64_t ret);
+    static TApiInfo CheckHook(uc_engine* uc, uint64_t PC);
+    static void CheckOnExitCallBack(bool IsAPI, uint64_t PC);
+    static bool CheckAddrHooks(uint64_t PC);
 };

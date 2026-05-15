@@ -61,33 +61,13 @@ void TEmu::SetHooks() {
         (void*)TEmu::HookCode, nullptr, 1, 0);
 
     err = uc_hook_add(uc, &trace5, UC_HOOK_INTR,
-        (void*)(+[](uc_engine* uc, uint32_t intno, void* user_data) {
-            if (Emulator && !Emulator->Stop) {
-                PLOG_WARNING << "Interrupt 0x" << std::hex << intno << " at 0x"
-                             << reg_read_x64(uc, UC_X86_REG_RIP);
-                if (intno == 3) {
-                    uint64_t pc = reg_read_x64(uc, UC_X86_REG_RIP);
-                    pc++;
-                    uc_reg_write(uc, UC_X86_REG_EIP, &pc);
-                }
-            }
-        }), nullptr, 1, 0);
+        (void*)TEmu::HookIntr, nullptr, 1, 0);
 
     err = uc_hook_add(uc, &trace6, UC_HOOK_INSN,
-        (void*)(+[](uc_engine* uc, uint32_t user_data) {
-            // Syscall stub
-            uint64_t rax = reg_read_x64(uc, UC_X86_REG_EAX);
-            PLOG_DEBUG << "Syscall EAX=0x" << std::hex << rax;
-            reg_write_x64(uc, UC_X86_REG_RAX, 0);
-        }), nullptr, 1, 0, UC_X86_INS_SYSCALL);
+        (void*)TEmu::HookSysCall, nullptr, 1, 0, UC_X86_INS_SYSCALL);
 
     err = uc_hook_add(uc, &trace7, UC_HOOK_INSN,
-        (void*)(+[](uc_engine* uc, uint32_t user_data) {
-            // SysEnter stub
-            uint64_t eax = reg_read_x64(uc, UC_X86_REG_EAX);
-            PLOG_DEBUG << "SysEnter EAX=0x" << std::hex << eax;
-            reg_write_x64(uc, UC_X86_REG_EAX, 0);
-        }), nullptr, 1, 0, UC_X86_INS_SYSENTER);
+        (void*)TEmu::HookSysEnter, nullptr, 1, 0, UC_X86_INS_SYSENTER);
 }
 
 // ── MapPEtoUC ──────────────────────────────────────────────────

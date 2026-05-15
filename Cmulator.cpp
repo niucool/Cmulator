@@ -18,6 +18,23 @@
 
 using json = nlohmann::json;
 
+
+std::wstring s2w(const std::string& str) {
+    if (str.empty()) return L"";
+
+    // 1. Calculate the required wide character buffer size
+    size_t size_needed = mbstowcs(nullptr, str.c_str(), 0);
+    if (size_needed == static_cast<size_t>(-1)) return L""; // Invalid sequence
+
+    // 2. Allocate the wide string buffer
+    std::wstring wstrTo(size_needed, 0);
+
+    // 3. Perform the actual conversion
+    mbstowcs(&wstrTo[0], str.c_str(), size_needed);
+
+    return wstrTo;
+}
+
 // ── Load config.json ─────────────────────────────────────────────
 
 static bool LoadConfig() {
@@ -29,10 +46,10 @@ static bool LoadConfig() {
 
     json cfg = json::parse(f);
 
-    win32_dir = cfg["system"]["win32"].get<std::wstring>();
-    win64_dir = cfg["system"]["win64"].get<std::wstring>();
-    JSAPI  = cfg["JS"]["main"].get<std::string>();
-    ApiSetSchemaPath = cfg["system"]["Apiset"].get<std::wstring>();
+    JSAPI = cfg["JS"]["main"].get<std::string>();
+    win32_dir = s2w(cfg["system"]["win32"].get<std::string>());
+    win64_dir = s2w(cfg["system"]["win64"].get<std::string>());
+    ApiSetSchemaPath = s2w(cfg["system"]["Apiset"].get<std::string>());
 
     // TODO: validate file/dir existence
     return true;

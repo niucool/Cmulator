@@ -90,7 +90,10 @@ public:
     static bool HookMemInvalid(uc_engine* uc, uc_mem_type type, uint64_t address, int size, int64_t value, void* user_data);
     static void HookMemX86(uc_engine* uc, uc_mem_type type, uint64_t address, int size, int64_t value, void* user_data);
     static void HookCode(uc_engine* uc, uint64_t address, uint32_t size, void* user_data);
-    
+    static void HookIntr(uc_engine* uc, uint32_t intno, void* user_data);
+    static void HookSysCall(uc_engine* uc, void* user_data);
+    static void HookSysEnter(uc_engine* uc, void* user_data);
+
     static void FlushMemMapping(uc_engine* uc);
     static bool CallJS(TLibFunction& API, THookFunction& Hook, uint64_t ret);
     static TApiInfo CheckHook(uc_engine* uc, uint64_t PC);

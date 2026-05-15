@@ -24,3 +24,4 @@ UnicodeString win64_dir = L"";
 
 std::string JSAPI = "";
 UnicodeString ApiSetSchemaPath = L"";
+uint64_t Ident = 0;

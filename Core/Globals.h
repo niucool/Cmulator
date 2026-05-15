@@ -34,3 +34,4 @@ extern UnicodeString win64_dir; // 'win64' renamed to win64_dir
 // Pascal's AnsiString maps to std::string
 extern std::string JSAPI;
 extern UnicodeString ApiSetSchemaPath;
+extern uint64_t Ident;

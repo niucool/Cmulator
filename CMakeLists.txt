@@ -89,7 +89,7 @@ endif()
 set(plog_target plog::plog)
 
 # ── cmulator library ──
-set(LIB_SRC Core/Globals.cpp Core/segments.cpp Core/Utils.cpp
+set(LIB_SRC Core/Globals.cpp Core/segments.cpp Core/Utils.cpp Core/Emu.cpp
     Core/PE_Loader.cpp Core/emu_init.cpp Core/emu_hooks.cpp Core/NativeHooks.cpp 
     Core/js_engine.cpp Core/process/ethreads.cpp Core/PE/pe_image.cpp)
 set(LIB_HDR Core/types.h Core/Globals.h Core/Struct.h Core/TEP_PEB.h

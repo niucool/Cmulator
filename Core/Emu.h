@@ -1,7 +1,7 @@
 #pragma once
 #include "types.h"
-#include "fnhook.h"
-#include "segments.h"
+#include "FnHook.h"
+#include "Segments.h"
 #include "PE/pe_image.h"
 #include <unicorn/unicorn.h>
 #include <string>
@@ -18,63 +18,67 @@ struct THooks {
 
 class TEmu {
 public:
-    uc_engine* uc        = nullptr;
-    uc_context* tContext  = nullptr;
-    uc_err     err       = UC_ERR_OK;
+    // ── Constructor / Destructor ──────────────────────────────────
+    TEmu(const std::string& _FilePath, bool _Shellcode = false, bool SCx64 = false);
+    virtual ~TEmu();
 
-    bool    Is_x64  = false;
-    bool&   isx64    = Is_x64;
-    bool    IsSC    = false;
+    // ── Emulation engine ──────────────────────────────────────────
+    uc_engine* uc       = nullptr;
+    uc_context* tContext = nullptr;
+    uc_err      err     = UC_ERR_OK;
+
+    // ── Architecture ──────────────────────────────────────────────
+    bool    Is_x64   = false;
+    bool&   isx64     = Is_x64;
+    bool    isShellCode = false;
+    bool    IsSC     = false;
     bool    Stop_Emu = false;
-    bool&   Stop     = Stop_Emu;
+    bool&   Stop      = Stop_Emu;
+    uint32_t tmpbool  = 0;
+    bool    RunOnDll  = false;
+    bool    IsException = false;
+    int64_t SEH_Handler = 0;
 
+    // ── PE ────────────────────────────────────────────────────────
     PEImage img;
+    std::string FilePath;
+    uint64_t ImageBase = 0; // alias for img.ImageBase
 
+    // ── Stack ─────────────────────────────────────────────────────
     uint32_t stack_size  = 0;
     uint64_t stack_base  = 0;
     uint64_t stack_limit = 0;
-    uint64_t DLL_BASE_LOAD = 0x70000000;
-    uint64_t DLL_NEXT_LOAD = 0x70000000;
 
+    // ── DLL loading ───────────────────────────────────────────────
+    uint64_t DLL_BASE_LOAD = 0x0000000700000000ULL;
+    uint64_t DLL_NEXT_LOAD = 0x0000000700000000ULL;
+
+    // ── Zydis ─────────────────────────────────────────────────────
     ZydisFormatter Formatter;
 
+    // ── State maps ────────────────────────────────────────────────
     FastHashMap<std::string, TNewDll> Libs;
-    FastHashMap<std::string, TApiRed> ApiSetSchema;
+    FastHashMap<std::string, TApiRed>  ApiSetSchema;
     THooks Hooks;
     FastHashMap<uint64_t, THookFunction> OnExitList;
 
-    bool    RunOnDll    = false;
-    bool    IsException = false;
-    int64_t SEH_Handler = 0;
-    uint32_t PID        = 0;
-    uint8_t  tmpbool    = 0;
-
-    // GDT / segments
+    // ── GDT / segments ────────────────────────────────────────────
     uint64_t gdt_address = 0;
     uc_x86_mmr gdtr{};
+    uint64_t TEB_Address = 0, PEB_address = 0;
+    uint64_t fs_address = 0, gs_address = 0;
+    uint32_t r_cs=0, r_ss=0, r_ds=0, r_es=0, r_fs=0, r_gs=0;
 
-    // TEB / PEB addresses
-    uint64_t TEB_Address  = 0;
-    uint64_t PEB_address  = 0;
-    uint64_t fs_address   = 0;
-    uint64_t gs_address   = 0;
-
-    // Segment register values
-    uint32_t r_cs = 0, r_ss = 0, r_ds = 0, r_es = 0, r_fs = 0, r_gs = 0;
-
-    // Emulation state
+    // ── Emulation state ───────────────────────────────────────────
     uint64_t Entry      = 0;
     uint64_t LastGoodPC = 0;
+    uint64_t PID        = 0;
     TFlags   Flags;
 
-    // Memory fixup stacks
     std::stack<uint64_t> MemFix;
     std::stack<flush_r>  FlushMem;
 
-    // Methods
-    TEmu() = default;
-    virtual ~TEmu() = default;
-
+    // ── Methods ───────────────────────────────────────────────────
     bool init_segments();
     void SetHooks();
     bool MapPEtoUC();
@@ -85,15 +89,13 @@ public:
     void ResetEFLAGS();
     void* GetGDT(int index);
 
-    // Callbacks & Helpers
     static bool Handle_SEH(uc_engine* uc, uint32_t ExceptionCode);
-    static bool HookMemInvalid(uc_engine* uc, uc_mem_type type, uint64_t address, int size, int64_t value, void* user_data);
-    static void HookMemX86(uc_engine* uc, uc_mem_type type, uint64_t address, int size, int64_t value, void* user_data);
-    static void HookCode(uc_engine* uc, uint64_t address, uint32_t size, void* user_data);
+    static bool HookMemInvalid(uc_engine* uc, uc_mem_type type, uint64_t addr, int size, int64_t val, void* user);
+    static void HookMemX86(uc_engine* uc, uc_mem_type type, uint64_t addr, int size, int64_t val, void* user);
+    static void HookCode(uc_engine* uc, uint64_t addr, uint32_t size, void* user);
     static void HookIntr(uc_engine* uc, uint32_t intno, void* user_data);
     static void HookSysCall(uc_engine* uc, void* user_data);
     static void HookSysEnter(uc_engine* uc, void* user_data);
-
     static void FlushMemMapping(uc_engine* uc);
     static bool CallJS(TLibFunction& API, THookFunction& Hook, uint64_t ret);
     static TApiInfo CheckHook(uc_engine* uc, uint64_t PC);
